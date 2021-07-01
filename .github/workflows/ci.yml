@@ -9,7 +9,7 @@ on:
     - main
 
 jobs:
-    test:
+    x86_test:
         name: "Python ${{ matrix.python-version }} on ${{ matrix.os }}"
         runs-on: ${{ matrix.os }}
 
@@ -17,23 +17,9 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - os: ubuntu-18.04
-                      python-version: 3.6
 
                     - os: ubuntu-18.04
                       python-version: 3.7
-
-                    - os: ubuntu-latest
-                      python-version: 3.8
-
-                    - os: ubuntu-latest
-                      python-version: 3.9
-
-                    - os: macos-latest
-                      python-version: 3.9
-
-                    - os: windows-latest
-                      python-version: 3.9
 
         steps:
         - uses: actions/checkout@v2
@@ -104,3 +90,54 @@ jobs:
             fail_ci_if_error: true
             path_to_write_report: ./coverage/codecov_report.txt
             verbose: true
+    
+    armv64_job:
+      name: Build and Test for arm64
+      strategy:
+        matrix:
+          pyver: [cp37-cp37m]
+      runs-on: ubuntu-18.04
+      env:
+        py: /opt/python/${{ matrix.pyver }}/bin/python
+        img: quay.io/pypa/manylinux2014_aarch64  
+    
+      steps:
+        - uses: actions/checkout@v2
+        - name: Set up QEMU
+          id: qemu
+          uses: docker/setup-qemu-action@v1
+      
+        - name: Install and Run tests
+          run: |
+            docker run --rm -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
+              ${{ env.img }} \
+              bash -exc '${{ env.py }} -m pip install virtualenv && ${{ env.py }} -m venv .env && \
+              source .env/bin/activate && \
+              yum install -y update && \
+              yum install -y wget && \
+
+              python -m pip install --upgrade pip && \
+              python --version && \
+            
+              uname -m && \
+              yum install -y libsamplerate0 libsndfile1
+              whoami && \
+              wget -q "https://github.com/conda-forge/miniforge/releases/download/4.8.2-1/Miniforge3-4.8.2-1-Linux-aarch64.sh" -O miniconda.sh && \
+              chmod +x miniconda.sh && \
+              ./miniconda.sh -u -b -p $HOME/miniconda3 && \
+              export PATH=$HOME/miniconda3/bin:$PATH && \
+
+              ~/miniconda3/bin/conda install conda-build -y && \
+              ~/miniconda3/bin/conda create -q -y --name testenv python=3.7 cython numpy pytest psutil pip && \
+              source ~/miniconda3/bin/activate testenv && \
+              conda --version && \
+              conda install -c conda-forge pip numpy scipy coverage scikit-learn!=0.19.0 matplotlib numba ffmpeg libsndfile pysoundfile coveralls && \
+              conda info -a
+              conda list
+              python --version && \
+              pwd && \
+              ls && \
+              python --version && \
+              python -m pip install --upgrade-strategy only-if-needed -e .[tests]
+              pytest
+              deactivate'
