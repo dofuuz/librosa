@@ -1,12 +1,6 @@
 name: CI
 
-on:
-  push:
-    branches:
-    - main
-  pull_request:
-    branches:
-    - main
+on: [push, pull_request]
 
 jobs:
     
@@ -55,8 +49,8 @@ jobs:
               conda list
               python --version && \
               pwd && \
-              ls && \
-              python --version && \
+              ls
+              python -m pip install soxr==0.2.5a2
               python -m pip install --upgrade-strategy only-if-needed -e .[tests]
               pytest
               deactivate'
